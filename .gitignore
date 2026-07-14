@@ -1,0 +1,9 @@
+# Sensitive config — never commit
+lab.config.ps1
+
+# PowerShell artifacts
+*.ps1xml
+
+# OS
+.DS_Store
+Thumbs.db
