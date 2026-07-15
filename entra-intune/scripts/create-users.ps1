@@ -14,16 +14,8 @@
 . "$PSScriptRoot/../../lab.config.ps1"
 
 # ── Department user definitions ───────────────────────────────
-$users = @(
-    @{ GivenName="Alex";   Surname="Morgan"; Department="IT";      JobTitle="IT Admin";          Username="alex.morgan" }
-    @{ GivenName="Jordan"; Surname="Blake";  Department="IT";      JobTitle="IT Support";        Username="jordan.blake" }
-    @{ GivenName="Taylor"; Surname="Reed";   Department="HR";      JobTitle="HR Manager";        Username="taylor.reed" }
-    @{ GivenName="Morgan"; Surname="Ellis";  Department="HR";      JobTitle="HR Coordinator";    Username="morgan.ellis" }
-    @{ GivenName="Casey";  Surname="Quinn";  Department="HR";      JobTitle="HR Analyst";        Username="casey.quinn" }
-    @{ GivenName="Riley";  Surname="Grant";  Department="Finance"; JobTitle="Finance Manager";   Username="riley.grant" }
-    @{ GivenName="Avery";  Surname="Stone";  Department="Finance"; JobTitle="Financial Analyst"; Username="avery.stone" }
-    @{ GivenName="Drew";   Surname="Hale";   Department="Finance"; JobTitle="Accountant";        Username="drew.hale" }
-)
+# Import the CSV file
+$users = Import-Csv -Path "$PSScriptRoot/users.csv"
 
 $createdCount = 0
 $skippedCount = 0
