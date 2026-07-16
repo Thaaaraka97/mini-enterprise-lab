@@ -45,7 +45,7 @@ foreach ($g in $groups) {
     $createdCount++
 
     # ── Find and add department members ───────────────────────
-    $members = Get-MgUser -Filter "department eq '$($g.Department)'" -All
+    $members = Get-MgUser -All -Property "ID,DisplayName,Department" | Where-Object {$_.Department -eq $g.Department}
     $addedCount = 0
 
     foreach ($member in $members) {
