@@ -1,6 +1,6 @@
 # ============================================================
 # create-groups.ps1
-# Creates security groups and assigns members in Entra ID
+# Creates security groups in Entra ID
 # Prerequisites:
 #   - PowerShell 7+
 #   - Microsoft.Graph module installed
@@ -33,7 +33,7 @@ foreach ($g in $groups) {
     }
 
     # ── Create group ──────────────────────────────────────────
-    $newGroup = New-MgGroup -BodyParameter @{
+    New-MgGroup -BodyParameter @{
         displayName     = $g.DisplayName
         description     = $g.Description
         mailEnabled     = $false
@@ -43,20 +43,6 @@ foreach ($g in $groups) {
 
     Write-Host "  CREATE $($g.DisplayName)" -ForegroundColor Green
     $createdCount++
-
-    # ── Find and add department members ───────────────────────
-    $members = Get-MgUser -All -Property "ID,DisplayName,Department" | Where-Object {$_.Department -eq $g.Department}
-    $addedCount = 0
-
-    foreach ($member in $members) {
-        New-MgGroupMember -GroupId $newGroup.Id -BodyParameter @{
-            "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($member.Id)"
-        }
-        Write-Host "    + $($member.DisplayName) → $($g.DisplayName)" -ForegroundColor DarkGreen
-        $addedCount++
-    }
-
-    Write-Host "    Members added: $addedCount`n" -ForegroundColor DarkGreen
 }
 
 Write-Host " Done. Created: $createdCount  |  Skipped: $skippedCount`n" -ForegroundColor Cyan
