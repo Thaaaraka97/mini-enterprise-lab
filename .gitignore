@@ -1,6 +1,7 @@
 # Sensitive config — never commit
 lab.config.ps1
 user.config
+adds/bicep/deploy-vm.sh
 
 # PowerShell artifacts
 *.ps1xml
