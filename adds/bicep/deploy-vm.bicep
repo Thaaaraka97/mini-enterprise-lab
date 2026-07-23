@@ -25,7 +25,7 @@ param allowRdpFromIp string
 param location string = resourceGroup().location
 
 @description('VM size — must be available in your subscription')
-param vmSize string = 'Standard_D2als_v4'
+param vmSize string = 'Standard_D2als_v7'
 
 @description('Environment prefix for naming')
 param prefix string = 'lab'
