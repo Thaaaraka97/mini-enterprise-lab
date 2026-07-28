@@ -5,12 +5,11 @@
 # Prerequisites: AD DS installed and forest promoted
 # ============================================================
 
-# ── Load config ───────────────────────────────────────────────
-. "$PSScriptRoot/../../lab.config.ps1"
 
 # ── Configuration ─────────────────────────────────────────────
 $DomainDN   = "DC=corp,DC=local"
 $DomainName = "corp.local"
+$DefaultPassword = Read-Host -Prompt "Enter default password for users" -AsSecureString
 
 # ══════════════════════════════════════════════════════════════
 # BLOCK 1 — Create OUs
