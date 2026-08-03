@@ -1,48 +1,60 @@
 // ============================================================
 // deploy-vm.bicep
-// Deploys a Windows Server 2022 Domain Controller VM
-// Usage:
-//   az deployment group create \
-//     --resource-group rg-lab-adds \
-//     --template-file deploy-vm.bicep \
-//     --parameters adminUsername=labadmin \
-//                  adminPassword=YOUR-PASSWORD \
-//                  allowRdpFromIp=YOUR-PUBLIC-IP
+// Generic reusable VM template
+// All values driven by parameters — no hardcoded specifics
+// Usage: called by deploy.sh with different parameter sets
 // ============================================================
 
 // ── Parameters ────────────────────────────────────────────────
-@description('Admin username for the VM')
+@description('VM name')
+param vmName string
+
+@description('Admin username')
 param adminUsername string
 
-@description('Admin password for the VM')
+@description('Admin password')
 @secure()
 param adminPassword string
 
-@description('Your public IP to allow RDP — find it at whatismyip.com')
+@description('Your public IP to allow RDP')
 param allowRdpFromIp string
 
-@description('Azure region for all resources')
+@description('Azure region')
 param location string = resourceGroup().location
 
-@description('VM size — must be available in your subscription')
+@description('VM size')
 param vmSize string = 'Standard_D2als_v7'
 
-@description('Environment prefix for naming')
-param prefix string = 'lab'
+@description('OS image publisher')
+param imagePublisher string = 'MicrosoftWindowsServer'
+
+@description('OS image offer')
+param imageOffer string = 'WindowsServer'
+
+@description('OS image SKU')
+param imageSku string = '2022-datacenter-azure-edition'
+
+@description('Static private IP address')
+param privateIpAddress string
+
+@description('Auto-shutdown time in HHMM format')
+param autoShutdownTime string = '1900'
+
+@description('Timezone for auto-shutdown')
+param timeZoneId string = 'Eastern Standard Time'
+
+@description('OS disk size in GB')
+param osDiskSizeGB int = 128
 
 // ── Variables ─────────────────────────────────────────────────
-var vmName         = '${prefix}-dc-01'
-var vnetName       = '${prefix}-vnet-adds'
+var vnetName       = 'lab-vnet-adds'
 var subnetName     = 'snet-dc'
-var nsgName        = '${prefix}-nsg-dc'
-var pipName        = '${prefix}-pip-dc'
-var nicName        = '${prefix}-nic-dc'
-var osDiskName     = '${prefix}-disk-dc-os'
-var vnetAddressPrefix  = '10.0.0.0/16'
-var subnetPrefix       = '10.0.1.0/24'
-var privateIpAddress   = '10.0.1.4'    // Static — DNS needs a fixed IP
+var nsgName        = '${vmName}-nsg'
+var pipName        = '${vmName}-pip'
+var nicName        = '${vmName}-nic'
+var osDiskName     = '${vmName}-disk-os'
 
-// ── Network Security Group ────────────────────────────────────
+// ── NSG ───────────────────────────────────────────────────────
 resource nsg 'Microsoft.Network/networkSecurityGroups@2023-09-01' = {
   name: nsgName
   location: location
@@ -55,11 +67,25 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-09-01' = {
           protocol:                 'Tcp'
           access:                   'Allow'
           direction:                'Inbound'
-          sourceAddressPrefix:      allowRdpFromIp    // Your IP only
+          sourceAddressPrefix:      allowRdpFromIp
           sourcePortRange:          '*'
           destinationAddressPrefix: '*'
           destinationPortRange:     '3389'
           description:              'Allow RDP from admin IP only'
+        }
+      }
+      {
+        name: 'Allow-Internal-Inbound'
+        properties: {
+          priority:                 200
+          protocol:                 '*'
+          access:                   'Allow'
+          direction:                'Inbound'
+          sourceAddressPrefix:      '10.0.1.0/24'
+          sourcePortRange:          '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange:     '*'
+          description:              'Allow all internal subnet traffic'
         }
       }
       {
@@ -73,29 +99,26 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-09-01' = {
           sourcePortRange:          '*'
           destinationAddressPrefix: '*'
           destinationPortRange:     '*'
-          description:              'Deny all other inbound traffic'
+          description:              'Deny all other inbound'
         }
       }
     ]
   }
 }
 
-// ── Virtual Network + Subnet ──────────────────────────────────
+// ── VNet — only deploy if it doesn't exist ────────────────────
 resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
   name: vnetName
   location: location
   properties: {
     addressSpace: {
-      addressPrefixes: [ vnetAddressPrefix ]
+      addressPrefixes: [ '10.0.0.0/16' ]
     }
     subnets: [
       {
         name: subnetName
         properties: {
-          addressPrefix: subnetPrefix
-          networkSecurityGroup: {
-            id: nsg.id
-          }
+          addressPrefix: '10.0.1.0/24'
         }
       }
     ]
@@ -106,18 +129,16 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
 resource pip 'Microsoft.Network/publicIPAddresses@2023-09-01' = {
   name: pipName
   location: location
-  sku: {
-    name: 'Standard'
-  }
+  sku: { name: 'Standard' }
   properties: {
-    publicIPAllocationMethod: 'Static'   // Static so IP doesn't change on restart
+    publicIPAllocationMethod: 'Static'
     dnsSettings: {
-      domainNameLabel: '${prefix}-dc-01'
+      domainNameLabel: vmName
     }
   }
 }
 
-// ── Network Interface ─────────────────────────────────────────
+// ── NIC ───────────────────────────────────────────────────────
 resource nic 'Microsoft.Network/networkInterfaces@2023-09-01' = {
   name: nicName
   location: location
@@ -137,10 +158,13 @@ resource nic 'Microsoft.Network/networkInterfaces@2023-09-01' = {
         }
       }
     ]
+    networkSecurityGroup: {
+      id: nsg.id
+    }
   }
 }
 
-// ── Virtual Machine ───────────────────────────────────────────
+// ── VM ────────────────────────────────────────────────────────
 resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
   name: vmName
   location: location
@@ -149,20 +173,20 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
       vmSize: vmSize
     }
     osProfile: {
-      computerName:         vmName
-      adminUsername:        adminUsername
-      adminPassword:        adminPassword
+      computerName:  vmName
+      adminUsername: adminUsername
+      adminPassword: adminPassword
       windowsConfiguration: {
         enableAutomaticUpdates: true
         provisionVMAgent:       true
-        timeZone:               'Eastern Standard Time'
+        timeZone:               timeZoneId
       }
     }
     storageProfile: {
       imageReference: {
-        publisher: 'MicrosoftWindowsServer'
-        offer:     'WindowsServer'
-        sku:       '2022-datacenter-azure-edition'
+        publisher: imagePublisher
+        offer:     imageOffer
+        sku:       imageSku
         version:   'latest'
       }
       osDisk: {
@@ -171,31 +195,28 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
         managedDisk: {
           storageAccountType: 'StandardSSD_LRS'
         }
-        diskSizeGB: 128
+        diskSizeGB: osDiskSizeGB
       }
     }
     networkProfile: {
       networkInterfaces: [
-        {
-          id: nic.id
-        }
+        { id: nic.id }
       ]
     }
   }
 }
 
 // ── Auto-shutdown ─────────────────────────────────────────────
-// Saves credits — shuts down at 7PM Eastern daily
 resource autoShutdown 'Microsoft.DevTestLab/schedules@2018-09-15' = {
   name: 'shutdown-computevm-${vmName}'
   location: location
   properties: {
-    status:           'Enabled'
-    taskType:         'ComputeVmShutdownTask'
+    status:    'Enabled'
+    taskType:  'ComputeVmShutdownTask'
     dailyRecurrence: {
-      time: '1900'             // 7PM
+      time: autoShutdownTime
     }
-    timeZoneId:       'Eastern Standard Time'
+    timeZoneId:       timeZoneId
     targetResourceId: vm.id
     notificationSettings: {
       status: 'Disabled'
@@ -204,8 +225,8 @@ resource autoShutdown 'Microsoft.DevTestLab/schedules@2018-09-15' = {
 }
 
 // ── Outputs ───────────────────────────────────────────────────
-output vmName          string = vm.name
-output publicIpAddress string = pip.properties.ipAddress
+output vmName           string = vm.name
+output publicIpAddress  string = pip.properties.ipAddress
 output privateIpAddress string = privateIpAddress
-output rdpCommand      string = 'remmina rdp://${adminUsername}@${pip.properties.ipAddress}'
-output fqdn            string = pip.properties.dnsSettings.fqdn
+output fqdn             string = pip.properties.dnsSettings.fqdn
+output rdpCommand       string = 'remmina rdp://${adminUsername}@${pip.properties.ipAddress}'
