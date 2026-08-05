@@ -20,28 +20,12 @@ A fully scripted, portfolio-ready enterprise IT environment built from scratch o
 
 ### Environment 1 — Cloud (Entra ID + Intune)
 
-Users (8 across IT, HR, Finance)
-↓
-Microsoft Entra ID P2
-↓
-Conditional Access (MFA required, legacy auth blocked)
-↓
-Microsoft Intune
-↓
-Windows 11 VM (compliance + configuration policies applied)
+![Entra ID + Intune architecture](entra-intune/diagrams/entra-architecture.png)
 
 
 ### Environment 2 — On-premises AD DS (Azure-hosted)
 
-Windows 11 Client VM
-↓
-Domain join → corp.local
-↓
-Active Directory Domain Controller (lab-dc-01)
-↓
-DNS + Group Policy + OU delegation
-↓
-Policies applied (password, lock screen, USB restriction, login banner)
+![AD DS architecture](adds/diagrams/adds-architecture.png)
 
 
 ### Future — Phase 4
