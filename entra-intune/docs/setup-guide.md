@@ -77,7 +77,7 @@ $TenantDomain    = "yourtenantname.onmicrosoft.com"
 $TenantId        = "your-tenant-id-guid"
 $AdminUPN        = "admin@yourtenantname.onmicrosoft.com"
 $UsageLocation   = "CA"          # Two-letter country code
-$DefaultPassword = "LabUser@2024!"
+$DefaultPassword = "XXXXXX"
 ```
 
 To find your Tenant ID: portal.azure.com → Microsoft Entra ID → Overview → Tenant ID field.
@@ -164,7 +164,7 @@ CREATE GRP-Finance
 ## Step 6 — Assign group members
 
 ```powershell
-./entra-intune/scripts/add-group-members.ps1
+./entra-intune/scripts/assign-group-members.ps1
 ```
 
 Expected output:

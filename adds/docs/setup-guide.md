@@ -41,7 +41,7 @@ nano deploy.sh
 Fill in:
 
 ```bash
-ADMIN_PASSWORD="YourStrongPassword@2024"
+ADMIN_PASSWORD="YourStrongPassword@XXX"
 ALLOW_RDP_FROM_IP="your.public.ip.here"  # from curl ifconfig.me
 ```
 
@@ -50,7 +50,7 @@ ALLOW_RDP_FROM_IP="your.public.ip.here"  # from curl ifconfig.me
 ## Step 2 — Deploy Domain Controller VM
 
 ```bash
-bash ~/mini-enterprise-lab/adds/bicep/deploy.sh dc
+bash ~/mini-enterprise-lab/adds/bicep/deploy-vm.sh dc
 ```
 
 This deploys:
@@ -171,7 +171,11 @@ LINK GPO-Lock-Screen -> OU=Finance
 CREATE + LINK GPO-USB-Restriction -> OU=Finance
 ```
 
-Verify login banner immediately — lock the DC and log back in. The banner should appear before the login screen.
+Verify login banner immediately:
+```powershell
+gpupdate /force
+```
+signout of the DC and log back in. The banner should appear before the login screen.
 
 Verify password policy:
 ```powershell
@@ -225,13 +229,14 @@ After restart, log back in as `CORP\labadmin` then:
 # Add domain users to RDP
 net localgroup "Remote Desktop Users" "CORP\Domain Users" /add
 
-# Disable force password change on all users
+# Log back into the DC
+# Disable force password change on all users for testing RDP
 $users = @("taylor.reed","morgan.ellis","casey.quinn",
            "riley.grant","avery.stone","drew.hale",
            "alex.morgan","jordan.blake")
 foreach ($u in $users) {
     Set-ADAccountPassword -Identity $u `
-        -NewPassword (ConvertTo-SecureString "LabUser@2024!" -AsPlainText -Force) -Reset
+        -NewPassword (ConvertTo-SecureString "YourSecurePassword" -AsPlainText -Force) -Reset
     Set-ADUser -Identity $u -ChangePasswordAtLogon $false
 }
 ```
@@ -240,7 +245,7 @@ foreach ($u in $users) {
 
 ## Step 8 — Verify GPOs on client
 
-RDP into client as a domain user (e.g. `CORP\taylor.reed` / `LabUser@2024!`):
+RDP into client as a domain user (e.g. `CORP\taylor.reed` / `YourSecurePassword`):
 
 ```powershell
 # Force GPO refresh
